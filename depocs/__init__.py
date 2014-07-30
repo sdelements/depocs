@@ -15,12 +15,15 @@ class classproperty(property):
 
 
 class ScopedClass(type):
+    def is_scoped_cls(cls, subcls):
+        return isinstance(ScopedClass, subcls)
+
     def __init__(cls, clsname, bases=None, attrs=None):
         super(ScopedClass, cls).__init__(clsname, bases, attrs)
 
         if attrs.has_key('ScopedOptions'):
             meta = dict((name, getattr(attrs['ScopedOptions'], name))
-                         for name in dir(attrs['ScopedOptions']) if name[:2] != '__')
+                        for name in dir(attrs['ScopedOptions']) if name[:2] != '__')
         else:
             meta = {}
 
@@ -36,10 +39,12 @@ class ScopedClass(type):
         if meta.has_key('max_nesting') and meta['inherit_stack']:
             raise TypeError("Can't override max_nesting if inheriting the stack")
 
-        cls.ScopedOptions = classobj(
-            'ScopedOptions',
-            tuple([base.ScopedOptions for base in bases if hasattr(base, 'ScopedOptions')]),
-            meta)
+        scoped_bases = tuple(base for base in bases if isinstance(base, ScopedClass))
+
+        if scoped_bases:
+            cls.ScopedOptions = classobj('ScopedOptions', tuple(base.ScopedOptions for base in scoped_bases), meta)
+            cls.Missing = classobj('Missing', tuple(base.Missing for base in scoped_bases), {})
+            cls.LifecycleError = classobj('LifecycleError', tuple(base.LifecycleError for base in scoped_bases), {})
 
 
 class Scoped(object):
@@ -141,18 +146,18 @@ class Scoped(object):
         """
         if self.is_open:
             if self.open_site:
-                raise Scoped.LifecycleError("{0}({1}) is already open\n{2}".format(
+                raise self.LifecycleError("{0}({1}) is already open\n{2}".format(
                     self.__class__.__name__, id(self), self.format_trace("  ")))
 
         if not self.ScopedOptions.allow_reuse and self.is_used:
-            raise Scoped.LifecycleError("{0}({1}) cannot be reused\n{2}".format(
+            raise self.LifecycleError("{0}({1}) cannot be reused\n{2}".format(
                 self.__class__.__name__, id(self), self.format_trace("  ")))
 
         if not hasattr(self.__thread_local, 'stack'):
             self.__thread_local.stack = []
 
         if len(self.__thread_local.stack) >= self.ScopedOptions.max_nesting:
-            raise Scoped.LifecycleError("Cannot nest {0} more than {1} levels\n{2}".format(
+            raise self.LifecycleError("Cannot nest {0} more than {1} levels\n{2}".format(
                 self.__class__.__name__, self.ScopedOptions.max_nesting, self.format_trace("  ")))
 
         self.__thread_local.stack.append(self)
@@ -168,14 +173,14 @@ class Scoped(object):
     def close(self):
         if not self.is_open:
             if not self.ScopedOptions.allow_reuse and self.is_used:
-                raise Scoped.LifecycleError("This {0} has already been closed\n{1}".format(
+                raise self.LifecycleError("This {0} has already been closed\n{1}".format(
                     self.__class__.__name__, self.format_trace("  ")))
             else:
-                raise Scoped.LifecycleError("This {0} is not open\n{1}".format(
+                raise self.LifecycleError("This {0} is not open\n{1}".format(
                     self.__class__.__name__, self.format_trace("  ")))
 
         if not self.is_current:
-            raise Scoped.LifecycleError("This {0} is not at the top of the stack\n{1}".format(
+            raise self.LifecycleError("This {0} is not at the top of the stack\n{1}".format(
                 self.__class__.__name__, self.format_trace("  ")))
 
         self.__thread_local.stack.pop()
@@ -206,6 +211,10 @@ class Scoped(object):
         return type(self).has_current and type(self).current == self
 
     @classproperty
+    def stack(cls):
+        return cls.__thread_local.stack
+
+    @classproperty
     def has_default(cls):
         return cls.default is not None
 
@@ -220,7 +229,7 @@ class Scoped(object):
     @classproperty
     def topmost(cls):
         if not cls.has_topmost:
-            raise Scoped.Missing("No {0} on the stack".format(cls.__name__))
+            raise cls.Missing("No {0} on the stack".format(cls.__name__))
         return cls.__thread_local.stack[-1]
 
     @classproperty
@@ -234,7 +243,7 @@ class Scoped(object):
         elif cls.has_default:
             return cls.default
         else:
-            raise Scoped.Missing("No {0} is in scope".format(cls.__name__))
+            raise cls.Missing("No {0} is in scope".format(cls.__name__))
 
     @classproperty
     def current_if_any(cls):

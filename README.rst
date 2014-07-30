@@ -89,5 +89,39 @@ them::
             max_nesting = 16
 
             # If True, instances can be re-opened after being closed.
-            # If False, instances can only be opened and closed once.
+            # If False, instances can only be opened and closed once, and will
+            # raise a LifecycleError on any attempt to reopen them.
             allow_reuse = False
+
+
+Default Instance
+----------------
+
+An instance of a Scoped subclass can be assigned to the ``default`` property
+of the class. This instance will be the value of the ``current`` property
+when the stack is empty i.e. when no other instances are open. The default
+instance itself is not opened by virtue of being the default. Opening it
+will push it onto the stack like any other instance.
+
+
+Errors
+------
+
+``Scoped`` has three inner exception classes that it will raise for various
+error conditions: ``Scoped.Error`` is the base class for the other two, which
+are ``Scoped.Missing`` and ``Scoped.Lifecycle``.
+
+``Scoped.Missing`` is raised when an attempt is made to access a scoped object
+that is not available, i.e. when accessing ``Scoped.current`` with an empty
+stack and no default instance.
+
+``Scoped.Lifecycle`` is raised on any attempt to open or close a scoped object
+at the wrong time e.g. opening an object that is already open, closing an object
+that is not at the top of the stack, and various other cases.
+
+Both of these exceptions are automatically subclassed along with their containing
+class. Each subclass of ``Scoped`` gets its own exception classes that inherit
+from the base exceptions. This allows you to easily handle errors from particular
+scoped classes without worrying about catching unrelated errors from other scoped
+classes.
+

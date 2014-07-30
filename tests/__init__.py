@@ -29,7 +29,6 @@ class ScopedTests(unittest.TestCase):
             class ScopedOptions:
                 inherit_stack = False
                 max_nesting = 3
-                outer_access = False
                 allow_reuse = True
 
         class SubSub(Sub):
@@ -39,11 +38,20 @@ class ScopedTests(unittest.TestCase):
         # ScopedOptions should subclass the parent ScopedOptions and inherit its attributes
         self.assertTrue(SubSub.ScopedOptions, Sub.ScopedOptions)
         self.assertEqual(Sub.ScopedOptions.max_nesting, SubSub.ScopedOptions.max_nesting)
-        self.assertEqual(Sub.ScopedOptions.outer_access, SubSub.ScopedOptions.outer_access)
         self.assertEqual(Sub.ScopedOptions.allow_reuse, SubSub.ScopedOptions.allow_reuse)
 
         # except for inherit_stack, which should not be inherited
         self.assertTrue(SubSub.ScopedOptions.inherit_stack)
+
+    def test_exceptions_automatically_subclassed(self):
+        class Sub(Scoped):
+            pass
+
+        self.assertFalse(Sub.Missing == Scoped.Missing)
+        self.assertTrue(issubclass(Sub.Missing, Scoped.Missing))
+
+        self.assertFalse(Sub.LifecycleError == Scoped.LifecycleError)
+        self.assertTrue(issubclass(Sub.LifecycleError, Scoped.LifecycleError))
 
     def test_cant_inherit_stack_from_root(self):
         def bad():
@@ -64,6 +72,16 @@ class ScopedTests(unittest.TestCase):
                     max_nesting = 99
 
         self.assertRaises(TypeError, bad)
+
+    def test_mixin_inheritance(self):
+        class OtherBase(object): pass
+        class SubA(Scoped, OtherBase): pass
+        class SubB(OtherBase, Scoped): pass
+
+    def test_diamond_inheritance(self):
+        class SubA(Scoped): pass
+        class SubB(Scoped): pass
+        class SubAB(SubA, SubB): pass
 
     # Lifecycle
 
