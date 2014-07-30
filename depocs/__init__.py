@@ -1,6 +1,6 @@
 import inspect
 import threading
-from new import classobj
+
 
 class classproperty(property):
     """
@@ -15,39 +15,45 @@ class classproperty(property):
 
 
 class ScopedClass(type):
-    def is_scoped_cls(cls, subcls):
-        return isinstance(ScopedClass, subcls)
-
     def __init__(cls, clsname, bases=None, attrs=None):
         super(ScopedClass, cls).__init__(clsname, bases, attrs)
 
-        if attrs.has_key('ScopedOptions'):
-            meta = dict((name, getattr(attrs['ScopedOptions'], name))
-                        for name in dir(attrs['ScopedOptions']) if name[:2] != '__')
+        if not hasattr(cls, '_Scoped__thread_local'):
+            # ScopedBase
+            return
+        elif '_Scoped__thread_local' in attrs:
+            # Scoped
+            return
         else:
-            meta = {}
+            # subclass of Scoped
+            scoped_bases = tuple(base for base in bases if isinstance(base, ScopedClass))
+            immediate_subclass = len(scoped_bases) == 0 or scoped_bases[0]._Scoped__thread_local is None
 
-        if not meta.has_key('inherit_stack'):
-            meta['inherit_stack'] = cls._Scoped__thread_local is not None
+            if 'ScopedOptions' in attrs:
+                meta = dict((name, getattr(attrs['ScopedOptions'], name))
+                            for name in dir(attrs['ScopedOptions']) if name[:2] != '__')
+            else:
+                meta = {}
 
-        if meta['inherit_stack'] and cls._Scoped__thread_local is None:
-            raise TypeError("No stack to inherit (trying to inherit it from {0}?)".format(Scoped.__name__))
+            if 'inherit_stack' not in meta:
+                meta['inherit_stack'] = not immediate_subclass
 
-        if not meta['inherit_stack'] and not cls.__dict__.has_key('_Scoped__abstract_base'):
-            cls._Scoped__thread_local = threading.local()
+            if meta['inherit_stack'] and immediate_subclass:
+                raise TypeError("Base class does not have a stack to inherit")
 
-        if meta.has_key('max_nesting') and meta['inherit_stack']:
-            raise TypeError("Can't override max_nesting if inheriting the stack")
+            if not meta['inherit_stack']:
+                cls._Scoped__thread_local = threading.local()
 
-        scoped_bases = tuple(base for base in bases if isinstance(base, ScopedClass))
+            if 'max_nesting' in meta and meta['inherit_stack']:
+                raise TypeError("Can't override max_nesting if inheriting the stack")
 
-        if scoped_bases:
-            cls.ScopedOptions = classobj('ScopedOptions', tuple(base.ScopedOptions for base in scoped_bases), meta)
-            cls.Missing = classobj('Missing', tuple(base.Missing for base in scoped_bases), {})
-            cls.LifecycleError = classobj('LifecycleError', tuple(base.LifecycleError for base in scoped_bases), {})
+            if scoped_bases:
+                cls.ScopedOptions = type('ScopedOptions', tuple(base.ScopedOptions for base in scoped_bases), meta)
+                cls.Missing = type('Missing', tuple(base.Missing for base in scoped_bases), {})
+                cls.LifecycleError = type('LifecycleError', tuple(base.LifecycleError for base in scoped_bases), {})
 
 
-class Scoped(object):
+class Scoped(ScopedClass("ScopedBase", (object,), {})):
     """
     Abstract base class for an object representing a scope that can be entered and left
     by explicitly opening and closing the object. Instances can only be accessed from
@@ -119,7 +125,7 @@ class Scoped(object):
         # independent of any ancestors. The default is to inherit the stack,
         # unless subclassing Scoped directly, in which case a new
         # stack must be created. This attribute is NOT inherited by subclasses.
-        inherit_stack = False
+        inherit_stack = True
 
         # Maximum number of scopes that can be nested on this stack.
         # This cannot be overridden if inheriting the parent stack.
@@ -130,12 +136,11 @@ class Scoped(object):
         allow_reuse = False
 
 
-    __thread_local = None
-    __abstract_base = True
+    _Scoped__thread_local = None
 
-    __is_open = False
-    __is_used = False
-    __open_site = None
+    _Scoped__is_open = False
+    _Scoped__is_used = False
+    _Scoped__open_site = None
 
     def open(self, call_site_level=1):
         """
@@ -153,20 +158,20 @@ class Scoped(object):
             raise self.LifecycleError("{0}({1}) cannot be reused\n{2}".format(
                 self.__class__.__name__, id(self), self.format_trace("  ")))
 
-        if not hasattr(self.__thread_local, 'stack'):
-            self.__thread_local.stack = []
+        if not hasattr(self._Scoped__thread_local, 'stack'):
+            self._Scoped__thread_local.stack = []
 
-        if len(self.__thread_local.stack) >= self.ScopedOptions.max_nesting:
+        if len(self._Scoped__thread_local.stack) >= self.ScopedOptions.max_nesting:
             raise self.LifecycleError("Cannot nest {0} more than {1} levels\n{2}".format(
                 self.__class__.__name__, self.ScopedOptions.max_nesting, self.format_trace("  ")))
 
-        self.__thread_local.stack.append(self)
-        self.__is_open = True
-        self.__is_used = True
+        self._Scoped__thread_local.stack.append(self)
+        self._Scoped__is_open = True
+        self._Scoped__is_used = True
 
         stack = inspect.stack()
         if len(stack) > call_site_level:
-            self.__open_site = stack[call_site_level]
+            self._Scoped__open_site = stack[call_site_level]
 
         return self
 
@@ -183,8 +188,8 @@ class Scoped(object):
             raise self.LifecycleError("This {0} is not at the top of the stack\n{1}".format(
                 self.__class__.__name__, self.format_trace("  ")))
 
-        self.__thread_local.stack.pop()
-        self.__is_open = False
+        self._Scoped__thread_local.stack.pop()
+        self._Scoped__is_open = False
 
         return self
 
@@ -196,15 +201,15 @@ class Scoped(object):
 
     @property
     def is_open(self):
-        return self.__is_open
+        return self._Scoped__is_open
 
     @property
     def open_site(self):
-        return self.__open_site
+        return self._Scoped__open_site
 
     @property
     def is_used(self):
-        return self.__is_used
+        return self._Scoped__is_used
 
     @property
     def is_current(self):
@@ -212,7 +217,7 @@ class Scoped(object):
 
     @classproperty
     def stack(cls):
-        return cls.__thread_local.stack
+        return cls._Scoped__thread_local.stack
 
     @classproperty
     def has_default(cls):
@@ -224,13 +229,13 @@ class Scoped(object):
 
     @classproperty
     def has_topmost(cls):
-        return hasattr(cls.__thread_local, 'stack') and len(cls.__thread_local.stack) > 0
+        return hasattr(cls._Scoped__thread_local, 'stack') and len(cls._Scoped__thread_local.stack) > 0
 
     @classproperty
     def topmost(cls):
         if not cls.has_topmost:
             raise cls.Missing("No {0} on the stack".format(cls.__name__))
-        return cls.__thread_local.stack[-1]
+        return cls._Scoped__thread_local.stack[-1]
 
     @classproperty
     def has_current(cls):
@@ -253,7 +258,7 @@ class Scoped(object):
     @classmethod
     def clear(cls):
         try:
-            del cls.__thread_local.stack
+            del cls._Scoped__thread_local.stack
         except AttributeError:
             pass
 
@@ -270,8 +275,8 @@ class Scoped(object):
 
     @classmethod
     def format_trace(cls, prefix=""):
-        if hasattr(cls.__thread_local, 'stack'):
-            return "".join([prefix + so.format_trace_entry() for so in cls.__thread_local.stack])
+        if hasattr(cls._Scoped__thread_local, 'stack'):
+            return "".join([prefix + so.format_trace_entry() for so in cls._Scoped__thread_local.stack])
         else:
             return ""
 
