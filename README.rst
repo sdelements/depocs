@@ -13,7 +13,9 @@ and provides very informative error messages when you do something wrong.
 Examples
 --------
 
-A ``Scoped`` class can be used to pass around contextual data::
+A ``Scoped`` class can be used to pass around contextual data:
+
+.. code-block:: python
 
     class Session(Scoped):
         def __init__(self, user):
@@ -26,7 +28,9 @@ A ``Scoped`` class can be used to pass around contextual data::
         print_current_user()
 
 
-It can also be used to provide dependencies::
+It can also be used to provide dependencies:
+
+.. code-block:: python
 
     class Clock(Scoped):
         def __init__(self, now=None):
@@ -52,7 +56,9 @@ Opening and Closing
 
 ``Scoped`` objects are best used as context managers (i.e. using the ``with``
 statement), but for situations where this isn't possible, you can also open
-and close them "manually"::
+and close them "manually":
+
+.. code-block:: python
 
     class Transaction(Scoped):
         ...
@@ -73,7 +79,9 @@ Options
 The behavior of ``Scoped`` subclasses can be customized by declaring
 options in a nested class named ``ScopedOptions``. Except where noted,
 options are automatically inherited by subclasses that do not override
-them::
+them:
+
+.. code-block:: python
 
     class Thingy(Scoped):
         class ScopedOptions:
