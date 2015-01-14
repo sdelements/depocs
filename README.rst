@@ -133,3 +133,10 @@ from the base exceptions. This allows you to easily handle errors from particula
 scoped classes without worrying about catching unrelated errors from other scoped
 classes.
 
+
+FAQ
+---
+
+Q: What does the name "depocs" mean?
+
+A: It's "scoped" spelled backwards. :smile:
