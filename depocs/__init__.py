@@ -1,11 +1,23 @@
+"""
+Scoped is a mixin class that creates a thread-local stack for each of its
+subclasses. Instances of the subclass can be pushed and popped on this stack,
+and the instance at the top of the stack is always available as a property of
+the class.
+
+Scoped classes are typically used to make parameters implicitly
+available within a (dynamic) scope, without having to pass them around as
+function arguments. Scoped helps you do this in a safe and convenient way, and
+provides very informative error messages when you do something wrong.
+"""
+
 import inspect
 import threading
 
 
 class classproperty(property):
     """
-    Marries @property and @classmethod
-    Why doesn't python have this? Grr..
+    Marries ``@property`` and ``@classmethod``. Why doesn't python have this?
+    Grr..
     """
     def __new__(cls, fget, *args):
         return super(classproperty, cls).__new__(cls, classmethod(fget), *args)
@@ -62,7 +74,7 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
     'current' class property. Scopes are thread-local and can be used independently on
     multiple concurrent threads.
 
-    Basic usage:
+    Basic usage::
 
         class Session(Scoped):
             def __init__(self, user):
@@ -71,7 +83,7 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         with Session(user=some_guy) as s:
             print s.user
 
-    Or the scope can be opened and closed explicitly, if needed:
+    Or the scope can be opened and closed explicitly, if needed::
 
         s = Session(user=some_guy).open()
         try:
@@ -80,7 +92,7 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
             s.close()
 
     The inner-most scope can be accessed from the class property 'current', and thus
-    scoped objects can be used to pass scoped data around implicitly:
+    scoped objects can be used to pass scoped data around implicitly::
 
         def deeply_nested_function():
             print Session.current.some_guy
@@ -88,7 +100,7 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         with Session(user=some_guy):
             deeply_nested_function()
 
-    Various options can be set by defining an inner class named 'ScopedOptions':
+    Various options can be set by defining an inner class named 'ScopedOptions'::
 
         class Session(Scoped):
             class ScopedOptions:
@@ -100,7 +112,9 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
                 inherit_stack = True  # Use the same stack as the parent class
 
     """
-    class Error(Exception): pass
+
+    class Error(Exception):
+        pass
 
     class Missing(Error):
         """
@@ -114,27 +128,34 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
 
     __metaclass__ = ScopedClass
 
-    # Subclasses can use an inner class named 'ScopedOptions' to set
-    # some options. Unless otherwise specified, missing options
-    # are inherited from the ScopedOptions of the parent class.
     class ScopedOptions(object):
+        """
+        Subclasses can use an inner class named 'ScopedOptions' to set some
+        options. Unless otherwise specified, missing options are inherited from
+        the ScopedOptions of the parent class.
+        """
 
-        # If True, instances will share the stack of their parent class,
-        # and scopes must be well nested with respect to each other.
-        # If False, this class will have its own stack and will be scoped
-        # independent of any ancestors. The default is to inherit the stack,
-        # unless subclassing Scoped directly, in which case a new
-        # stack must be created. This attribute is NOT inherited by subclasses.
         inherit_stack = True
+        """
+        If True, instances will share the stack of their parent class, and
+        scopes must be well nested with respect to each other.  If False, this
+        class will have its own stack and will be scoped independent of any
+        ancestors. The default is to inherit the stack, unless subclassing
+        Scoped directly, in which case a new stack must be created. This
+        attribute is NOT inherited by subclasses.
+        """
 
-        # Maximum number of scopes that can be nested on this stack.
-        # This cannot be overridden if inheriting the parent stack.
         max_nesting = 16
+        """
+        Maximum number of scopes that can be nested on this stack.  This cannot
+        be overridden if inheriting the parent stack.
+        """
 
-        # If True, instances can be re-opened after being closed.
-        # If False, instances can only be opened and closed once.
         allow_reuse = False
-
+        """
+        If True, instances can be re-opened after being closed.
+        If False, instances can only be opened and closed once.
+        """
 
     _Scoped__thread_local = None
 
@@ -144,10 +165,12 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
 
     def open(self, call_site_level=1):
         """
-        call_site_level is the number of stack frames to skip
-        when determining where the scope was opened from.
-        The default value of 1 will record the site of the
-        actual call to this method.
+        Opens a new scoped context, adding it to the stack of scopes. Calls for
+        the current context will refer to this one.
+
+        ``call_site_level`` is the number of stack frames to skip when
+        determining where the scope was opened from.  The default value of 1
+        will record the site of the actual call to this method.
         """
         if self.is_open:
             if self.open_site:
@@ -176,6 +199,10 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         return self
 
     def close(self):
+        """
+        Closes the current scoped context, removing it from the stack of
+        contexts.
+        """
         if not self.is_open:
             if not self.ScopedOptions.allow_reuse and self.is_used:
                 raise self.LifecycleError("This {0} has already been closed\n{1}".format(

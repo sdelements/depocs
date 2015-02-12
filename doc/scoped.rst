@@ -1,0 +1,9 @@
+Depocs
+======
+
+.. automodule:: depocs
+    :members:
+
+
+
+
