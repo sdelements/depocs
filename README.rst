@@ -133,6 +133,10 @@ from the base exceptions. This allows you to easily handle errors from particula
 scoped classes without worrying about catching unrelated errors from other scoped
 classes.
 
+Docs
+----
+
+[The complete documentation for depocs can be found on readthedocs.org](http://depocs.readthedocs.org/en/latest/)
 
 FAQ
 ---
