@@ -136,7 +136,7 @@ classes.
 Docs
 ----
 
-[The complete documentation for depocs can be found on readthedocs.org](http://depocs.readthedocs.org/en/latest/)
+`The complete documentation for depocs can be found on readthedocs.org <http://depocs.readthedocs.org/en/latest/>`_
 
 FAQ
 ---
