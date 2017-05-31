@@ -192,10 +192,11 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         self._Scoped__is_open = True
         self._Scoped__is_used = True
 
-        stack = inspect.stack()
-        if len(stack) > call_site_level:
-            self._Scoped__open_site = stack[call_site_level]
-
+        try:
+            self._Scoped__open_site = sys._getframe(call_site_level)
+        except ValueError:
+            pass
+        
         return self
 
     def close(self):
