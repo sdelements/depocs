@@ -306,4 +306,3 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
             return "".join([prefix + so.format_trace_entry() for so in cls._Scoped__thread_local.stack])
         else:
             return ""
-
