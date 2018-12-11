@@ -74,14 +74,24 @@ class ScopedTests(unittest.TestCase):
         self.assertRaises(TypeError, bad)
 
     def test_mixin_inheritance(self):
-        class OtherBase(object): pass
-        class SubA(Scoped, OtherBase): pass
-        class SubB(OtherBase, Scoped): pass
+        class OtherBase(object):
+            pass
+
+        class SubA(Scoped, OtherBase):
+            pass
+
+        class SubB(OtherBase, Scoped):
+            pass
 
     def test_diamond_inheritance(self):
-        class SubA(Scoped): pass
-        class SubB(Scoped): pass
-        class SubAB(SubA, SubB): pass
+        class SubA(Scoped):
+            pass
+
+        class SubB(Scoped):
+            pass
+
+        class SubAB(SubA, SubB):
+            pass
 
     # Lifecycle
 
