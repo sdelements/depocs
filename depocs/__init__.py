@@ -9,6 +9,7 @@ available within a (dynamic) scope, without having to pass them around as
 function arguments. Scoped helps you do this in a safe and convenient way, and
 provides very informative error messages when you do something wrong.
 """
+from six import with_metaclass
 
 import inspect
 import threading
@@ -121,12 +122,10 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         A current scope is expected and there isn't one
         """
 
-    class LifecycleError(Error):
+    class LifecycleError(with_metaclass(ScopedClass, Error)):
         """
         A scope was opened/closed at the wrong time
         """
-
-    __metaclass__ = ScopedClass
 
     class ScopedOptions(object):
         """
