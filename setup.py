@@ -63,7 +63,7 @@ setup(
     # simple. Or you can use find_packages().
     packages=['depocs'],
     install_requires=[
-        "six==1.12.0"
+        "six==1.16.0"
     ],
     test_suite="tests",
 )
