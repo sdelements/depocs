@@ -1,5 +1,6 @@
 import threading
 import unittest
+
 from depocs import Scoped
 
 
@@ -37,8 +38,12 @@ class ScopedTests(unittest.TestCase):
 
         # ScopedOptions should subclass the parent ScopedOptions and inherit its attributes
         self.assertTrue(SubSub.ScopedOptions, Sub.ScopedOptions)
-        self.assertEqual(Sub.ScopedOptions.max_nesting, SubSub.ScopedOptions.max_nesting)
-        self.assertEqual(Sub.ScopedOptions.allow_reuse, SubSub.ScopedOptions.allow_reuse)
+        self.assertEqual(
+            Sub.ScopedOptions.max_nesting, SubSub.ScopedOptions.max_nesting
+        )
+        self.assertEqual(
+            Sub.ScopedOptions.allow_reuse, SubSub.ScopedOptions.allow_reuse
+        )
 
         # except for inherit_stack, which should not be inherited
         self.assertTrue(SubSub.ScopedOptions.inherit_stack)
@@ -270,6 +275,7 @@ class ScopedTests(unittest.TestCase):
     def test_default_instance(self):
         class S(Scoped):
             pass
+
         S.default = S()
 
         self.assertEqual(S.default, S.current)
