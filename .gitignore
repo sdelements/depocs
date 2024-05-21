@@ -1,4 +1,58 @@
-.idea
-build
+*.py[co]
+*.swp
+*.bak
+
+# docs
 _build
+
+# Packages
+*.egg
+*.egg-info
 dist
+build
+eggs
+parts
+bin
+var
+sdist
+develop-eggs
+.installed.cfg
+
+# Installer logs
+pip-log.txt
+
+# Unit test / coverage reports
+.coverage
+.tox
+
+.idea
+
+.DS_Store
+
+#Translations
+*.mo
+
+#Mr Developer
+.mr.developer.cfg
+
+# Configuration
+sdelint.cnf
+
+#generated data
+usecases/output.csv
+
+# Test files
+info.log
+htmlcov/
+
+#ides
+.idea
+.vscode
+
+#custom cert bundle
+my_root_certs.crt
+
+# symbolic links
+.flake8
+
+conf/
