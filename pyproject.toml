@@ -48,10 +48,6 @@ flake8-bugbear = "24.4.26"
 flake8-docstrings = "1.7.0"
 flake8-polyfill = "1.0.2"
 isort = "5.13.2"
-# test
-pytest = "8.2.0"
-pytest-cov = "5.0.0"
-responses = "0.25.0"
 # security
 bandit = "1.7.8"
 
