@@ -9,10 +9,28 @@ available within a (dynamic) scope, without having to pass them around as
 function arguments. Scoped helps you do this in a safe and convenient way, and
 provides very informative error messages when you do something wrong.
 """
-from six import with_metaclass
 
 import inspect
 import threading
+
+
+# Copied from six
+def with_metaclass(meta, *bases):
+    """Create a base class with a metaclass."""
+
+    # This requires a bit of explanation: the basic idea is to make a dummy
+    # metaclass for one level of class instantiation that replaces itself with
+    # the actual metaclass.
+    class metaclass(type):
+
+        def __new__(cls, name, this_bases, d):
+            return meta(name, bases, d)
+
+        @classmethod
+        def __prepare__(cls, name, this_bases):
+            return meta.__prepare__(name, bases)
+
+    return type.__new__(metaclass, "temporary_class", (), {})
 
 
 class classproperty(property):
@@ -20,6 +38,7 @@ class classproperty(property):
     Marries ``@property`` and ``@classmethod``. Why doesn't python have this?
     Grr..
     """
+
     def __new__(cls, fget, *args):
         return super(classproperty, cls).__new__(cls, classmethod(fget), *args)
 
@@ -31,39 +50,56 @@ class ScopedClass(type):
     def __init__(cls, clsname, bases=None, attrs=None):
         super(ScopedClass, cls).__init__(clsname, bases, attrs)
 
-        if not hasattr(cls, '_Scoped__thread_local'):
+        if not hasattr(cls, "_Scoped__thread_local"):
             # ScopedBase
             return
-        elif '_Scoped__thread_local' in attrs:
+        elif "_Scoped__thread_local" in attrs:
             # Scoped
             return
         else:
             # subclass of Scoped
-            scoped_bases = tuple(base for base in bases if isinstance(base, ScopedClass))
-            immediate_subclass = len(scoped_bases) == 0 or scoped_bases[0]._Scoped__thread_local is None
+            scoped_bases = tuple(
+                base for base in bases if isinstance(base, ScopedClass)
+            )
+            immediate_subclass = (
+                len(scoped_bases) == 0 or scoped_bases[0]._Scoped__thread_local is None
+            )
 
-            if 'ScopedOptions' in attrs:
-                meta = dict((name, getattr(attrs['ScopedOptions'], name))
-                            for name in dir(attrs['ScopedOptions']) if name[:2] != '__')
+            if "ScopedOptions" in attrs:
+                meta = dict(
+                    (name, getattr(attrs["ScopedOptions"], name))
+                    for name in dir(attrs["ScopedOptions"])
+                    if name[:2] != "__"
+                )
             else:
                 meta = {}
 
-            if 'inherit_stack' not in meta:
-                meta['inherit_stack'] = not immediate_subclass
+            if "inherit_stack" not in meta:
+                meta["inherit_stack"] = not immediate_subclass
 
-            if meta['inherit_stack'] and immediate_subclass:
+            if meta["inherit_stack"] and immediate_subclass:
                 raise TypeError("Base class does not have a stack to inherit")
 
-            if not meta['inherit_stack']:
+            if not meta["inherit_stack"]:
                 cls._Scoped__thread_local = threading.local()
 
-            if 'max_nesting' in meta and meta['inherit_stack']:
+            if "max_nesting" in meta and meta["inherit_stack"]:
                 raise TypeError("Can't override max_nesting if inheriting the stack")
 
             if scoped_bases:
-                cls.ScopedOptions = type('ScopedOptions', tuple(base.ScopedOptions for base in scoped_bases), meta)
-                cls.Missing = type('Missing', tuple(base.Missing for base in scoped_bases), {})
-                cls.LifecycleError = type('LifecycleError', tuple(base.LifecycleError for base in scoped_bases), {})
+                cls.ScopedOptions = type(
+                    "ScopedOptions",
+                    tuple(base.ScopedOptions for base in scoped_bases),
+                    meta,
+                )
+                cls.Missing = type(
+                    "Missing", tuple(base.Missing for base in scoped_bases), {}
+                )
+                cls.LifecycleError = type(
+                    "LifecycleError",
+                    tuple(base.LifecycleError for base in scoped_bases),
+                    {},
+                )
 
 
 class Scoped(ScopedClass("ScopedBase", (object,), {})):
@@ -122,7 +158,7 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         A current scope is expected and there isn't one
         """
 
-    class LifecycleError(with_metaclass(ScopedClass, Error)):
+    class LifecycleError(with_metaclass(ScopedClass, Exception)):
         """
         A scope was opened/closed at the wrong time
         """
@@ -173,19 +209,30 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         """
         if self.is_open:
             if self.open_site:
-                raise self.LifecycleError("{0}({1}) is already open\n{2}".format(
-                    self.__class__.__name__, id(self), self.format_trace("  ")))
+                raise self.LifecycleError(
+                    "{0}({1}) is already open\n{2}".format(
+                        self.__class__.__name__, id(self), self.format_trace("  ")
+                    )
+                )
 
         if not self.ScopedOptions.allow_reuse and self.is_used:
-            raise self.LifecycleError("{0}({1}) cannot be reused\n{2}".format(
-                self.__class__.__name__, id(self), self.format_trace("  ")))
+            raise self.LifecycleError(
+                "{0}({1}) cannot be reused\n{2}".format(
+                    self.__class__.__name__, id(self), self.format_trace("  ")
+                )
+            )
 
-        if not hasattr(self._Scoped__thread_local, 'stack'):
+        if not hasattr(self._Scoped__thread_local, "stack"):
             self._Scoped__thread_local.stack = []
 
         if len(self._Scoped__thread_local.stack) >= self.ScopedOptions.max_nesting:
-            raise self.LifecycleError("Cannot nest {0} more than {1} levels\n{2}".format(
-                self.__class__.__name__, self.ScopedOptions.max_nesting, self.format_trace("  ")))
+            raise self.LifecycleError(
+                "Cannot nest {0} more than {1} levels\n{2}".format(
+                    self.__class__.__name__,
+                    self.ScopedOptions.max_nesting,
+                    self.format_trace("  "),
+                )
+            )
 
         self._Scoped__thread_local.stack.append(self)
         self._Scoped__is_open = True
@@ -204,15 +251,24 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         """
         if not self.is_open:
             if not self.ScopedOptions.allow_reuse and self.is_used:
-                raise self.LifecycleError("This {0} has already been closed\n{1}".format(
-                    self.__class__.__name__, self.format_trace("  ")))
+                raise self.LifecycleError(
+                    "This {0} has already been closed\n{1}".format(
+                        self.__class__.__name__, self.format_trace("  ")
+                    )
+                )
             else:
-                raise self.LifecycleError("This {0} is not open\n{1}".format(
-                    self.__class__.__name__, self.format_trace("  ")))
+                raise self.LifecycleError(
+                    "This {0} is not open\n{1}".format(
+                        self.__class__.__name__, self.format_trace("  ")
+                    )
+                )
 
         if not self.is_current:
-            raise self.LifecycleError("This {0} is not at the top of the stack\n{1}".format(
-                self.__class__.__name__, self.format_trace("  ")))
+            raise self.LifecycleError(
+                "This {0} is not at the top of the stack\n{1}".format(
+                    self.__class__.__name__, self.format_trace("  ")
+                )
+            )
 
         self._Scoped__thread_local.stack.pop()
         self._Scoped__is_open = False
@@ -255,7 +311,10 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
 
     @classproperty
     def has_topmost(cls):
-        return hasattr(cls._Scoped__thread_local, 'stack') and len(cls._Scoped__thread_local.stack) > 0
+        return (
+            hasattr(cls._Scoped__thread_local, "stack")
+            and len(cls._Scoped__thread_local.stack) > 0
+        )
 
     @classproperty
     def topmost(cls):
@@ -291,17 +350,21 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
     def format_trace_entry(self):
         if self.open_site:
             return "{0}({1}) opened at {2}:{3}\n".format(
-                self.__class__.__name__,
-                id(self),
-                self.open_site[1],
-                self.open_site[2])
+                self.__class__.__name__, id(self), self.open_site[1], self.open_site[2]
+            )
         else:
             return "{0}({1}) opened somewhere\n".format(
-                self.__class__.__name__, id(self))
+                self.__class__.__name__, id(self)
+            )
 
     @classmethod
     def format_trace(cls, prefix=""):
-        if hasattr(cls._Scoped__thread_local, 'stack'):
-            return "".join([prefix + so.format_trace_entry() for so in cls._Scoped__thread_local.stack])
+        if hasattr(cls._Scoped__thread_local, "stack"):
+            return "".join(
+                [
+                    prefix + so.format_trace_entry()
+                    for so in cls._Scoped__thread_local.stack
+                ]
+            )
         else:
             return ""
