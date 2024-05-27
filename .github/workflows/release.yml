@@ -1,4 +1,4 @@
-name: prod
+name: Release
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  release:
+  publish:
     runs-on: ubuntu-latest
     strategy:
       matrix:
