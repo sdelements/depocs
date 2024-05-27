@@ -1,8 +1,11 @@
+os: linux
 dist: jammy
-sudo: false
 language: python
 python:
 - '3.12'
+branches:
+  only:
+  - master
 before_install:
 - pip install -U setuptools poetry
 install:
