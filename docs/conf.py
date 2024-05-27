@@ -47,7 +47,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "depocs"
-copyright = "2015, Jedediah Smith, Security Compass"
+copyright = "2024, Jedediah Smith, Security Compass"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
