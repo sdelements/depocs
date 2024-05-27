@@ -31,7 +31,8 @@ packages = [
   { include = "tests", format = "sdist" },
 ]
 exclude = [
-  "depocs/**/tests"
+  "depocs/**/tests",
+  "tests"
 ]
 
 [tool.poetry.dependencies]
