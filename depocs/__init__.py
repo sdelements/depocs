@@ -11,6 +11,7 @@ provides very informative error messages when you do something wrong.
 """
 
 import inspect
+import sys
 import threading
 
 
@@ -196,7 +197,7 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
 
     _Scoped__is_open = False
     _Scoped__is_used = False
-    _Scoped__open_site = None
+    _Scoped__open_site_frame = None
 
     def open(self, call_site_level=1):
         """
@@ -238,9 +239,13 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         self._Scoped__is_open = True
         self._Scoped__is_used = True
 
-        stack = inspect.stack()
-        if len(stack) > call_site_level:
-            self._Scoped__open_site = stack[call_site_level]
+        try:
+            frame = sys._getframe(call_site_level - 1)
+        except ValueError:
+            # No frame found, skip
+            pass
+        else:
+            self._Scoped__open_site_frame = frame
 
         return self
 
@@ -287,7 +292,7 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
 
     @property
     def open_site(self):
-        return self._Scoped__open_site
+        return inspect.getframeinfo(self._Scoped__open_site_frame)
 
     @property
     def is_used(self):
