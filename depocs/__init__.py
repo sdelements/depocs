@@ -240,12 +240,10 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         self._Scoped__is_used = True
 
         try:
-            frame = sys._getframe(call_site_level)
+            self._Scoped__open_site_frame = sys._getframe(call_site_level)
         except ValueError:
             # No frame found, skip
             pass
-        else:
-            self._Scoped__open_site_frame = frame
 
         return self
 
