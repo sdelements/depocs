@@ -11,6 +11,7 @@ provides very informative error messages when you do something wrong.
 """
 
 import inspect
+import sys
 import threading
 
 
@@ -196,7 +197,7 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
 
     _Scoped__is_open = False
     _Scoped__is_used = False
-    _Scoped__open_site = None
+    _Scoped__open_site_frame = None
 
     def open(self, call_site_level=1):
         """
@@ -238,9 +239,11 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         self._Scoped__is_open = True
         self._Scoped__is_used = True
 
-        stack = inspect.stack()
-        if len(stack) > call_site_level:
-            self._Scoped__open_site = stack[call_site_level]
+        try:
+            self._Scoped__open_site_frame = sys._getframe(call_site_level)
+        except ValueError:
+            # No frame found, skip
+            pass
 
         return self
 
@@ -286,8 +289,8 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
         return self._Scoped__is_open
 
     @property
-    def open_site(self):
-        return self._Scoped__open_site
+    def open_site(self) -> inspect.Traceback:
+        return inspect.getframeinfo(self._Scoped__open_site_frame)
 
     @property
     def is_used(self):
@@ -350,7 +353,7 @@ class Scoped(ScopedClass("ScopedBase", (object,), {})):
     def format_trace_entry(self):
         if self.open_site:
             return "{0}({1}) opened at {2}:{3}\n".format(
-                self.__class__.__name__, id(self), self.open_site[1], self.open_site[2]
+                self.__class__.__name__, id(self), self.open_site[0], self.open_site[1]
             )
         else:
             return "{0}({1}) opened somewhere\n".format(
